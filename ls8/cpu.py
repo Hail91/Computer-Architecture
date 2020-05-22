@@ -11,6 +11,10 @@ POP = 0b01000110
 ADD = 0b10100000
 CALL = 0b01010000
 RET = 0b00010001
+CMP = 0b10100111
+JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
 # Assign stack pointer to index 7 of register
 SP = 7
 
@@ -23,6 +27,9 @@ class CPU:
         self.reg = [0] * 8  # Stack pointer at R7
         self.PC = 0
         self.reg[SP] = 0XF4 # Set initial value of where stack pointer is pointing (F4 if it's empty)
+        self.L = 0 # Flag for "Less than", set to 0 or 1 boolean
+        self.G = 0 # Flag for "Greater than" set to 0 or 1 boolean
+        self.E = 0 # Flag for "Equal to" set to 0 or 1 boolean
 
     def ram_read(self, address):
         return self.ram[address]
@@ -51,6 +58,14 @@ class CPU:
             self.reg[reg_a] += self.reg[reg_b]
         elif op == MUL:
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == CMP:
+            # Set flags to true based on the following conditions
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.E = 1
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                self.G = 1
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.L = 1
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -77,7 +92,6 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-
         while True:
             # Get instruction from memory
             Instruction_reg = self.ram_read(self.PC)
@@ -87,7 +101,7 @@ class CPU:
             operand_b = self.ram_read(self.PC + 2)
 
             if Instruction_reg == HLT:
-                print('EXIT')
+                print('Anddddd, we\'re done!')
                 break
             elif Instruction_reg == LDI:
                 self.reg[operand_a] = operand_b
@@ -108,10 +122,10 @@ class CPU:
                 self.ram_write(v, self.reg[SP])
                 self.PC += 2
             elif Instruction_reg == POP:
-               v = self.ram_read(self.reg[SP])
-               self.reg[SP] += 1
-               self.reg[operand_a] = v
-               self.PC += 2
+                v = self.ram_read(self.reg[SP])
+                self.reg[SP] += 1
+                self.reg[operand_a] = v
+                self.PC += 2
             elif Instruction_reg == CALL:
                 self.reg[SP] -= 1
                 self.ram[self.reg[SP]] = self.PC + 2
@@ -119,6 +133,24 @@ class CPU:
             elif Instruction_reg == RET:
                 self.PC = self.ram[self.reg[SP]]
                 self.reg[SP] += 1
+            elif Instruction_reg == CMP:
+                self.alu(CMP, operand_a, operand_b)
+                self.PC += 3
+            elif Instruction_reg == JMP:
+                # Need to jump to address at the given reg
+                self.PC = self.reg[operand_a]
+            elif Instruction_reg == JEQ:
+                if self.E == 1:
+                    self.PC = self.reg[operand_a]
+                else:
+                    # Increment the program counter by 2 to move to next instruction (2 bit instr)
+                    self.PC += 2
+            elif Instruction_reg == JNE:
+                if self.E == 0:
+                    self.PC = self.reg[operand_a]
+                else:
+                    self.PC += 2
+
 
 
 
